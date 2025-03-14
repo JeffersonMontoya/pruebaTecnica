@@ -6,10 +6,10 @@ import os
 app = Flask(__name__)
 app.secret_key = 'clave_secreta'
 
-# Configuración para subir archivos
+
 UPLOAD_FOLDER = os.path.join(os.path.expanduser("~"), "Downloads")
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-archivo_guardado = None  # Variable global para la ruta del último archivo procesado
+archivo_guardado = None  
 
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
@@ -18,71 +18,123 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 def upload_file():
     global archivo_guardado
     if request.method == 'POST':
-        file = request.files['file']
-        if file:
-            # Guardar archivo subido en la carpeta de Descargas
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-            file.save(filepath)
-            archivo_guardado = filepath
+        if 'file' not in request.files and 'file2' not in request.files:
+            return render_template('index.html', error="No se han seleccionado archivos.")
+        
+        file1 = request.files.get('file')
+        file2 = request.files.get('file2')
+        
+   
+        if not file1 or not file2:
+            return render_template('index.html', error="Se requieren ambos archivos.")
+        
+       
+        filepath1 = os.path.join(app.config['UPLOAD_FOLDER'], file1.filename)
+        filepath2 = os.path.join(app.config['UPLOAD_FOLDER'], file2.filename)
+        file1.save(filepath1)
+        file2.save(filepath2)
+        
+        
+        df_simm = pd.read_excel(filepath1)  
+        df_seguimiento = pd.read_excel(filepath2)  
+        
+      
+        if len(df_simm) > 4:
+            df_simm_cleaned = df_simm.iloc[4:].reset_index(drop=True)
+        else:
+            return render_template('index.html', error="Archivo SIMM insuficiente.")
+        
+        
+        column_names_simm = [
+            'Correo Electronico', 'N° Orden de trabajo', 'REQ', 'Estado', 'Fecha de creación',
+            'Fecha Programada Inicio', 'Fecha Ult Modificación', 'Fecha de Cierre',
+            'Categorización N1', 'Categorización N2', 'Categorización N3', 'Detalle descripción', 'Resolución'
+        ]
+        
 
-            df = pd.read_excel(filepath)
-            if len(df) > 4:
-                df_cleaned = df.iloc[4:].reset_index(drop=True)
+        expected_columns = len(column_names_simm)
+        actual_columns = df_simm_cleaned.shape[1]
+        if actual_columns > expected_columns:
+            df_simm_cleaned = df_simm_cleaned.iloc[:, :expected_columns]
+        elif actual_columns < expected_columns:
+           
+            for i in range(actual_columns, expected_columns):
+                df_simm_cleaned[f"Column_{i}"] = ""
+        
+        df_simm_cleaned.columns = column_names_simm
+        
+
+        df_simm_cleaned = df_simm_cleaned.drop(['Fecha Programada Inicio', 'Fecha de Cierre'], axis=1)
+        df_simm_cleaned.rename(columns={'Resolución': 'Observación'}, inplace=True)
+        
+  
+        df_simm_cleaned['Entrega Plan de Trabajo'] = ''
+        df_simm_cleaned['Pruebas con SIMM'] = ''
+        df_simm_cleaned['Posible Salida a Producción'] = ''
+        df_simm_cleaned['Firma SIMM'] = ''
+        
+        solicitantes = [" ", "SIMM", "ESI", "SMM"]
+        df_simm_cleaned['Solicitante'] = solicitantes[0]
+        
+     
+        df_combined = df_simm_cleaned.copy()
+        
+      
+        required_columns = [
+            'Solicitante', 'WO', 'REQ', 'Fecha de creación', 'Fecha Ultima Nota',
+            'Descripción', 'Detalle Ultima Nota', 'Aplicación', 'Tipo', 'Observaciones UT'
+        ]
+        
+       
+        df_combined.rename(columns={'N° Orden de trabajo': 'WO'}, inplace=True)
+        
+       
+        for col in required_columns:
+            if col not in df_combined.columns:
+                df_combined[col] = ''
+        
+        
+        if 'WO' in df_seguimiento.columns:
+            for index, row in df_combined.iterrows():
+                wo = row['WO']
+                
+                matching_rows = df_seguimiento[df_seguimiento['WO'] == wo]
+                if not matching_rows.empty:
+                    match = matching_rows.iloc[0]
+                    for col in required_columns:
+                        if col in match and col in df_combined:
+                            df_combined.at[index, col] = match.get(col, '')
+        
+    
+        cols = ['Solicitante'] + [col for col in df_combined.columns if col != 'Solicitante']
+        df_combined = df_combined[cols]
+        
+      
+        def semaforo_colores(fecha):
+            hoy = datetime.now()
+            if pd.isnull(fecha):
+                return "sin fecha"
+            diferencia = (hoy - fecha).days
+            if diferencia <= 30:
+                return "verde"
+            elif 30 < diferencia <= 60:
+                return "naranja"
             else:
-                return render_template('index.html', error="Archivo insuficiente.")
-
-            # Limitar a 13 columnas
-            expected_columns = 13
-            if df_cleaned.shape[1] > expected_columns:
-                df_cleaned = df_cleaned.iloc[:, :expected_columns]
-
-            # Renombrar columnas
-            df_cleaned.columns = [
-                'Correo Electronico', 'N° Orden de trabajo', 'REQ', 'Estado', 'Fecha de creación',
-                'Fecha Programada Inicio', 'Fecha Ult Modificación', 'Fecha de Cierre',
-                'Categorización N1', 'Categorización N2', 'Categorización N3', 'Detalle descripción', 'Resolución'
-            ]
-
-            df_cleaned = df_cleaned.drop(['Fecha Programada Inicio', 'Fecha de Cierre'], axis=1)
-            df_cleaned.rename(columns={'Resolución': 'Observación'}, inplace=True)
-
-            # Agregar nuevas columnas
-            df_cleaned['Entrega Plan de Trabajo'] = ''
-            df_cleaned['Pruebas con SIMM'] = ''
-            df_cleaned['Posible Salida a Producción'] = ''
-            df_cleaned['Firma SIMM'] = ''
-
-            solicitantes = [" ", "SIMM", "ESI", "SMM"]
-            df_cleaned['Solicitante'] = solicitantes[0]
-            cols = ['Solicitante'] + [col for col in df_cleaned.columns if col != 'Solicitante']
-            df_cleaned = df_cleaned[cols]
-
-            # Lógica de colores de semáforo
-            def semaforo_colores(fecha):
-                hoy = datetime.now()
-                if pd.isnull(fecha):
-                    return "sin fecha"
-                diferencia = (hoy - fecha).days
-                if diferencia <= 30:
-                    return "verde"
-                elif 30 < diferencia <= 60:
-                    return "naranja"
-                else:
-                    return "rojo"
-
-            df_cleaned['Fecha Ult Modificación'] = pd.to_datetime(df_cleaned['Fecha Ult Modificación'], errors='coerce')
-            df_cleaned['Semaforo'] = df_cleaned['Fecha Ult Modificación'].apply(semaforo_colores)
-
-            # Guardar datos en sesión
-            data = df_cleaned.to_dict(orient='records')
-            session['datos'] = data
-
-            # Guardar archivo limpio
-            archivo_guardado = os.path.join(app.config['UPLOAD_FOLDER'], 'resultado_procesado.xlsx')
-            df_cleaned.to_excel(archivo_guardado, index=False)
-
-            return render_template('resultado.html', datos=data, solicitantes=solicitantes)
-
+                return "rojo"
+        
+        df_combined['Fecha Ult Modificación'] = pd.to_datetime(df_combined['Fecha Ult Modificación'], errors='coerce')
+        df_combined['Semaforo'] = df_combined['Fecha Ult Modificación'].apply(semaforo_colores)
+        
+     
+        data = df_combined.to_dict(orient='records')
+        session['datos'] = data
+        
+      
+        archivo_guardado = os.path.join(app.config['UPLOAD_FOLDER'], 'resultado_procesado.xlsx')
+        df_combined.to_excel(archivo_guardado, index=False)
+        
+        return render_template('resultado.html', datos=data, solicitantes=solicitantes)
+    
     return render_template('index.html')
 
 @app.route('/descargar', methods=['GET'])

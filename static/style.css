@@ -1,0 +1,94 @@
+/* Tabla personalizada */
+table.data {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    table-layout: auto; /* Permitir que las celdas se ajusten automáticamente */
+    overflow-x: auto; /* Desplazamiento horizontal si es necesario */
+    border: 1px solid #ddd; /* Añadir un borde general a la tabla */
+}
+
+table.data th, table.data td {
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd; /* Asegurar que las celdas tengan borde */
+    font-size: 14px;
+    white-space: nowrap; /* Evitar que el texto se divida en varias líneas */
+}
+
+/* Cambios para ver toda la descripción */
+table.data td.descripcion {
+    white-space: normal; /* Permitir que el texto en la columna Detalle descripción se ajuste en varias líneas */
+    word-wrap: break-word; /* Romper palabras largas */
+    width: 300px; /* Hacer la columna de Detalle descripción más ancha */
+}
+
+/* Cambios nuevos para encabezados */
+table.data th {
+    background-color: #198754;  /* Verde de Bootstrap */
+    color: white;
+    text-transform: uppercase;
+    border-bottom: 2px solid #444; /* Línea más gruesa para los encabezados */
+}
+
+table.data td {
+    padding: 10px 8px; /* Reducir padding en celdas */
+}
+
+/* Fondo alternado en las filas */
+table.data tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+table.data tbody tr:nth-child(odd) {
+    background-color: #ffffff;
+}
+
+table.data tbody tr:hover {
+    background-color: #f1f1f1; /* Fondo más claro en hover */
+}
+
+/* Colores del semáforo */
+td[data-semaforo="verde"] {
+    background-color: #28a745;
+    color: white;
+}
+
+td[data-semaforo="naranja"] {
+    background-color: #fd7e14;
+    color: white;
+}
+
+td[data-semaforo="rojo"] {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Añadir barra de desplazamiento horizontal si es necesario */
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* Estilo para los botones */
+button {
+    border-radius: 10px;
+    padding: 10px 15px;
+    font-size: 16px;
+}
+
+.table-responsive {
+    overflow-x: scroll;
+    position: relative;
+}
+
+.table-wrapper::before {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 20px;
+    overflow-x: scroll;
+    position: absolute;
+    top: -20px;
+}
+

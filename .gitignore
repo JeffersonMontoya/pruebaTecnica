@@ -1,0 +1,27 @@
+# Archivos Excel
+*.xlsx
+
+# Directorios de subida de archivos
+uploads/
+
+# Archivos temporales y caché
+*.tmp
+*.log
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Entorno virtual de Python
+venv/
+.env/
+*.env
+
+# Configuración del editor/IDE
+.vscode/
+.idea/
+
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
